@@ -1,12 +1,23 @@
-use kvstore::KVAction;
+use kvstore::{Args, KVAction};
+use std::env;
 
 fn main() {
-    let (action, key, value) = kvstore::parse_args();
-    match action {
+    let args = match Args::parse_args(env::args()) {
+        Ok(args) => args,
+        Err(err) => {
+            eprintln!("{}", err);
+            std::process::exit(1);
+        }
+    };
+
+    println!("{:?}", args);
+
+    match args.action {
         KVAction::GET => {
             todo!();
         }
-        KVAction::SET => { todo!();
+        KVAction::SET => {
+            todo!();
         }
-    }
+    };
 }

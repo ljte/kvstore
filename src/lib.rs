@@ -1,19 +1,10 @@
-use std::fmt;
-use std::{env, process::exit};
+mod errors;
+use errors::{ArgsParseError, UnknownAction};
 
 #[derive(Debug, PartialEq)]
 pub enum KVAction {
     SET,
     GET,
-}
-
-#[derive(Debug, PartialEq)]
-pub struct UnknownAction<'a>(&'a str);
-
-impl fmt::Display for UnknownAction<'_> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Unknown action {}", self.0)
-    }
 }
 
 impl KVAction {
@@ -26,30 +17,30 @@ impl KVAction {
     }
 }
 
+#[derive(Debug, PartialEq)]
 pub struct Args {
     pub action: KVAction,
     pub key: String,
     pub value: String,
 }
 
-#[derive(Debug, PartialEq)]
-pub struct ArgsParseError<'a>(&'a str);
-
 impl Args {
-    pub fn parse_args() -> Result<Self, ArgsParseError<'_>> {
-        let mut args = env::args().skip(1);
+    pub fn parse_args<T: Iterator<Item = String>>(args: T) -> Result<Self, ArgsParseError> {
+        let mut args = args.skip(1);
 
-        if args.len() < 3 {
-            return Err(ArgsParseError("Not enough arguments"));
-        }
+        let mut _parse_arg = |err_msg| match args.next() {
+            Some(v) => Ok(v),
+            None => Err(ArgsParseError(String::from(err_msg))),
+        };
 
-        let action = KVAction::from_str(args.next().unwrap().as_ref()).unwrap_or_else(|err| {
-            eprintln!("Error parsing args: {}", err);
-            exit(1);
-        });
-
-        let key = args.next().unwrap();
-        let value = args.next().unwrap();
+        let action = match KVAction::from_str(&_parse_arg("Missing action")?) {
+            Ok(v) => v,
+            Err(e) => {
+                return Err(ArgsParseError(format!("{}", e)));
+            }
+        };
+        let key = _parse_arg("Missing key")?;
+        let value = _parse_arg("Missing value")?;
 
         Ok(Self { action, key, value })
     }
@@ -67,6 +58,21 @@ mod tests {
 
     #[test]
     fn test_kvaction_not_parsed_from_random_str() {
-        todo!();
+        assert_eq!(KVAction::from_str("GGEG"), Err(UnknownAction("GGEG")));
+    }
+
+    #[test]
+    fn test_parse_args_object_created() {
+        let args = Args::parse_args(
+            ["get".to_string(), "key".to_string(), "value".to_string()].into_iter(),
+        );
+        assert_eq!(
+            args,
+            Ok(Args {
+                action: KVAction::GET,
+                key: "key".to_string(),
+                value: "value".to_string(),
+            })
+        );
     }
 }
